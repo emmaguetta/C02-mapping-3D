@@ -18,4 +18,8 @@ make install
 
 - Si le temps, website
 
-##
+### Prio de la to do
+- 1. Protocole de communication & Algo de triangulisation & batterie & Monter detecteur sur le tag 
+  2. Apprendre à lire le detecteur & prendre les mesures & Boitiers
+  3. Visualisation
+  4. Website
