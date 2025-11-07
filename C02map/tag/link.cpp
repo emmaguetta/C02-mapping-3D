@@ -105,7 +105,6 @@ void print_link(struct MyLink *p)
 
     while (temp->next != NULL)
     {
-        //Serial.println("Dev %d:%d m", temp->next->anchor_addr, temp->next->range);
         Serial.println(temp->next->anchor_addr, HEX);
         Serial.println(temp->next->range[0]);
         Serial.println(temp->next->dbm);
@@ -140,9 +139,6 @@ void delete_link(struct MyLink *p, uint16_t addr)
 
 void make_link_json(struct MyLink *p, String *s)
 {
-#ifdef SERIAL_DEBUG
-    Serial.println("make_link_json");
-#endif
     *s = "["; 
     struct MyLink *temp = p;
     bool first = true;
@@ -157,8 +153,9 @@ void make_link_json(struct MyLink *p, String *s)
         sprintf(addrStr, "%04X", temp->anchor_addr & 0xFFFF);
 
         char link_json[100];
+
         sprintf(link_json,
-                "{\"T\":%lu,\"A\":%s\",\"R\":%.2f,\"Rx\":%.2f}",
+                "{\"T\":%lu,\"A\":\"%s\",\"R\":%.2f,\"Rx\":%.2f}",
                 millis(), addrStr, temp->range[0], temp->dbm);
 
         *s += link_json;
