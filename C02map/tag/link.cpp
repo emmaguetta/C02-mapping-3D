@@ -137,7 +137,7 @@ void delete_link(struct MyLink *p, uint16_t addr)
     return;
 }
 
-void make_link_json(struct MyLink *p, String *s)
+void make_link_json(struct MyLink *p, String *s, int co2Value)
 {
     *s = "["; 
     struct MyLink *temp = p;
@@ -152,11 +152,11 @@ void make_link_json(struct MyLink *p, String *s)
         char addrStr[8];
         sprintf(addrStr, "%04X", temp->anchor_addr & 0xFFFF);
 
-        char link_json[100];
+        char link_json[120];
 
         sprintf(link_json,
-                "{\"T\":%lu,\"A\":\"%s\",\"R\":%.2f,\"Rx\":%.2f}",
-                millis(), addrStr, temp->range[0], temp->dbm);
+                "{\"T\":%lu,\"A\":\"%s\",\"R\":%.2f,\"Rx\":%.2f,\"C\":%d}",
+                millis(), addrStr, temp->range[0], temp->dbm, co2Value);
 
         *s += link_json;
     }

@@ -16,14 +16,19 @@
 #define PIN_IRQ 34
 #define PIN_SS 4
 
-const unsigned long DATA_INTERVAL  = 10000;    // 10s
-const unsigned long LOG_INTERVAL   = 120000;   // 2min
-const unsigned long CLEAR_INTERVAL = 900000;   // 15min
+#define TXD2 22
+#define RXD2 21
+
+const unsigned long DATA_INTERVAL  = 10000;
+const unsigned long LOG_INTERVAL   = 120000;
+const unsigned long CLEAR_INTERVAL = 900000;
 const int MAX_LOGS = 10;
 
-#define BLE_SERVICE_UUID        "service-uid"
-#define BLE_CHAR_CMD_UUID       "char-cmd-uid"
-#define BLE_CHAR_LOGS_UUID      "char-logs-uid"
+#define BLE_SERVICE_UUID        "12341234-1234-1234-1234-123412341234"
+#define BLE_CHAR_CMD_UUID       "12341234-1234-1234-1234-123412341235"
+#define BLE_CHAR_LOGS_UUID      "12341234-1234-1234-1234-123412341236"
+
+byte readCO2[] = {0xFE, 0x04, 0x00, 0x03, 0x00, 0x01, 0xD5, 0xC5};
 
 struct LogEntry {
   unsigned long timestamp;
@@ -45,6 +50,52 @@ BLECharacteristic* pLogsCharacteristic = nullptr;
 bool deviceConnected = false;
 
 String cmd = "";
+
+unsigned int modbusCRC(byte* buf, int len) {
+  unsigned int crc = 0xFFFF;
+  for (int pos = 0; pos < len; pos++) {
+    crc ^= (unsigned int)buf[pos];
+    for (int i = 8; i != 0; i--) {
+      if ((crc & 0x0001) != 0) {
+        crc >>= 1;
+        crc ^= 0xA001;
+      } else {
+        crc >>= 1;
+      }
+    }
+  }
+  return crc;
+}
+
+int readCO2Value() {
+  const int expectedLength = 7;
+  byte response[expectedLength];
+  int bytesRead = 0;
+  unsigned long startTime = millis();
+
+  while (Serial2.available()) Serial2.read();
+  Serial2.write(readCO2, sizeof(readCO2));
+  delay(300);
+
+  while ((bytesRead < expectedLength) && (millis() - startTime < 1000)) {
+    if (Serial2.available()) {
+      response[bytesRead++] = Serial2.read();
+    }
+  }
+
+  if (bytesRead == expectedLength) {
+    unsigned int crcReceived = response[5] + ((unsigned int)response[6] << 8);
+    unsigned int crcCalc = modbusCRC(response, 5);
+    if (crcReceived == crcCalc) {
+      uint16_t co2ppm = ((uint16_t)response[3] << 8) | response[4];
+      return (int)co2ppm;
+    } else {
+      return -999;
+    }
+  } else {
+    return -999;
+  }
+}
 
 void clearLogs() {
   for (int i = 0; i < MAX_LOGS; i++) {
@@ -87,7 +138,8 @@ void addLog(String json) {
 
 String buildUWBLogJSON() {
   String json;
-  make_link_json(uwb_data, &json);
+  int co2Value = readCO2Value();
+  make_link_json(uwb_data, &json, co2Value);
   Serial.println(json);
   return json;
 }
@@ -203,6 +255,8 @@ void setup() {
   Serial.begin(115200);
   delay(100);
 
+  Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
+
   if (!SPIFFS.begin(true)) Serial.println("SPIFFS mount failed!");
   else Serial.println("SPIFFS mounted");
 
@@ -233,7 +287,8 @@ void loop() {
   unsigned long now = millis();
   if (uwb_data && now - lastDataTime >= DATA_INTERVAL) {
     String tmp;
-    make_link_json(uwb_data, &tmp);
+    int co2Value = readCO2Value();
+    make_link_json(uwb_data, &tmp, co2Value);
     lastDataTime = now;
   }
   if (uwb_data && now - lastLogTime >= LOG_INTERVAL) {
@@ -247,6 +302,3 @@ void loop() {
 
   delay(20);
 }
-
-
-
